@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -21,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { ReportCategory } from "@/types/schema";
 
 interface ReportFormProps {
   isOpen: boolean;
@@ -28,7 +28,7 @@ interface ReportFormProps {
   onSuccess: () => void;
 }
 
-const categories = [
+const categories: ReportCategory[] = [
   "Traffic",
   "Road Damage", 
   "Water Drainage",
@@ -42,7 +42,19 @@ const categories = [
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }).max(100),
-  category: z.string().min(1, { message: "Please select a category" }),
+  category: z.enum([
+    "Traffic", 
+    "Road Damage", 
+    "Water Drainage", 
+    "Fallen Tree", 
+    "Street Light Issue", 
+    "Under Maintenance", 
+    "Garbage Dumping", 
+    "Illegal Parking", 
+    "Other"
+  ], {
+    required_error: "Please select a category"
+  }),
   location: z.string().min(3, { message: "Please enter a valid location" }),
   description: z.string().min(10, { message: "Description must be at least 10 characters" }),
 });
@@ -59,7 +71,7 @@ const ReportForm = ({ isOpen, onClose, onSuccess }: ReportFormProps) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      category: "",
+      category: undefined,
       description: "",
       location: "",
     },

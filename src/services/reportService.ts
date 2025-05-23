@@ -1,8 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Report } from '@/types/schema';
+import { Report, ReportCategory } from '@/types/schema';
 
-export const getReports = async (category: string | null = null) => {
+export const getReports = async (category: ReportCategory | null = null) => {
   try {
     let query = supabase
       .from('reports')
@@ -43,7 +42,7 @@ export const getReports = async (category: string | null = null) => {
           id: report.id,
           title: report.title,
           description: report.description,
-          category: report.category,
+          category: report.category as ReportCategory,
           location: report.location,
           votes: votesData || { up: 0, down: 0 },
           imageUrl: report.image_url,
@@ -69,7 +68,7 @@ export const getReports = async (category: string | null = null) => {
 export const createReport = async (reportData: {
   title: string;
   description: string;
-  category: string;
+  category: ReportCategory;
   location: string;
   imageFile?: File;
 }) => {
@@ -108,16 +107,14 @@ export const createReport = async (reportData: {
     // Insert the report
     const { data, error } = await supabase
       .from('reports')
-      .insert([
-        {
-          user_id: userId,
-          title,
-          description,
-          category,
-          location,
-          image_url: imageUrl
-        }
-      ])
+      .insert({
+        user_id: userId,
+        title,
+        description,
+        category,
+        location,
+        image_url: imageUrl
+      })
       .select()
       .single();
     
