@@ -1,7 +1,18 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Report, ReportCategory } from '@/types/schema';
 import { Database } from '@/integrations/supabase/types';
 import { Json } from '@/integrations/supabase/types';
+
+// Type guard to validate votes data structure
+function isValidVotesData(data: any): data is { up: number; down: number } {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    typeof data.up === 'number' &&
+    typeof data.down === 'number'
+  );
+}
 
 export const getReports = async (category: ReportCategory | null = null) => {
   try {
@@ -30,11 +41,10 @@ export const getReports = async (category: ReportCategory | null = null) => {
           report_id: report.id
         });
         
-        // Ensure votesData is properly typed or provide fallback
-        const votes = votesData ? {
-          up: typeof votesData.up === 'number' ? votesData.up : 0,
-          down: typeof votesData.down === 'number' ? votesData.down : 0
-        } : { up: 0, down: 0 };
+        // Use our type guard to ensure votes data is valid
+        const votes = isValidVotesData(votesData) 
+          ? votesData 
+          : { up: 0, down: 0 };
         
         // Get user's vote for this report if authenticated
         let userVote = null;
@@ -194,6 +204,11 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
       report_id: reportId
     });
     
+    // Use our type guard here too
+    const votes = isValidVotesData(votesData) 
+      ? votesData 
+      : { up: 0, down: 0 };
+    
     // Get user's current vote after this operation
     const { data: userVoteData } = await supabase.rpc('get_user_vote', { 
       p_report_id: reportId, 
@@ -201,7 +216,7 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
     });
     
     return {
-      votes: votesData || { up: 0, down: 0 },
+      votes: votes,
       userVote: userVoteData as 'up' | 'down' | null
     };
   } catch (error) {
