@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -100,8 +101,13 @@ const ReportForm = ({ isOpen, onClose, onSuccess }: ReportFormProps) => {
   const onSubmit = async (data: FormData) => {
     try {
       setIsLoading(true);
+      
+      // Fixed: Ensure all required fields are passed, and only pass imageFile if it exists
       await createReport({
-        ...data,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        location: data.location,
         imageFile: imageFile || undefined,
       });
       

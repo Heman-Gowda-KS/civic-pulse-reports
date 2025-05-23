@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Report, ReportCategory } from '@/types/schema';
+import { Database } from '@/integrations/supabase/types';
+import { Json } from '@/integrations/supabase/types';
 
 export const getReports = async (category: ReportCategory | null = null) => {
   try {
@@ -28,6 +30,12 @@ export const getReports = async (category: ReportCategory | null = null) => {
           report_id: report.id
         });
         
+        // Ensure votesData is properly typed or provide fallback
+        const votes = votesData ? {
+          up: typeof votesData.up === 'number' ? votesData.up : 0,
+          down: typeof votesData.down === 'number' ? votesData.down : 0
+        } : { up: 0, down: 0 };
+        
         // Get user's vote for this report if authenticated
         let userVote = null;
         if (userId) {
@@ -44,7 +52,7 @@ export const getReports = async (category: ReportCategory | null = null) => {
           description: report.description,
           category: report.category as ReportCategory,
           location: report.location,
-          votes: votesData || { up: 0, down: 0 },
+          votes: votes,
           imageUrl: report.image_url,
           createdAt: new Date(report.created_at).toLocaleDateString('en-US', {
             year: 'numeric',

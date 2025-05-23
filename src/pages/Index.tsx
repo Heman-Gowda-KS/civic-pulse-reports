@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,13 +10,13 @@ import { Plus, MapPin, Users, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getReports, voteOnReport } from "@/services/reportService";
-import { Report } from "@/types/schema";
+import { Report, ReportCategory } from "@/types/schema";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Index = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<ReportCategory | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -36,6 +35,30 @@ const Index = () => {
       });
     }
   }, [error, toast]);
+
+  // Modified to use proper typed category handler
+  const handleCategoryChange = (category: string | null) => {
+    // Validate that the category is one of our allowed types or null
+    if (category === null || isCategoryValid(category)) {
+      setSelectedCategory(category as ReportCategory | null);
+    } else {
+      console.error("Invalid category selected:", category);
+      toast({
+        title: "Invalid category",
+        description: "The selected category is not valid.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Helper function to validate category
+  const isCategoryValid = (category: string): category is ReportCategory => {
+    return [
+      "Traffic", "Road Damage", "Water Drainage", "Fallen Tree", 
+      "Street Light Issue", "Under Maintenance", "Garbage Dumping", 
+      "Illegal Parking", "Other"
+    ].includes(category);
+  };
 
   const handleVote = async (reportId: string, voteType: 'up' | 'down') => {
     if (!user) {
@@ -157,7 +180,7 @@ const Index = () => {
             </div>
             <CategoryFilter 
               selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
+              onCategoryChange={handleCategoryChange}
             />
           </div>
 
