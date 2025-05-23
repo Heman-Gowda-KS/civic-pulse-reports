@@ -9,16 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          location: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at?: string
+          description: string
+          id?: string
+          image_url?: string | null
+          location: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["report_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          location?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          created_at: string
+          id: string
+          report_id: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_id: string
+          user_id: string
+          vote_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_id?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_report_votes: {
+        Args: { report_id: string }
+        Returns: Json
+      }
+      get_user_vote: {
+        Args: { p_report_id: string; p_user_id: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      report_category:
+        | "Traffic"
+        | "Road Damage"
+        | "Water Drainage"
+        | "Fallen Tree"
+        | "Street Light Issue"
+        | "Under Maintenance"
+        | "Garbage Dumping"
+        | "Illegal Parking"
+        | "Other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +240,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      report_category: [
+        "Traffic",
+        "Road Damage",
+        "Water Drainage",
+        "Fallen Tree",
+        "Street Light Issue",
+        "Under Maintenance",
+        "Garbage Dumping",
+        "Illegal Parking",
+        "Other",
+      ],
+    },
   },
 } as const

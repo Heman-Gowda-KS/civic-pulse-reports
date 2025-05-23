@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Clock } from "lucide-react";
+import { voteOnReport } from "@/services/reportService";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface Report {
-  id: number;
+  id: string;
   title: string;
   description: string;
   category: string;
@@ -18,11 +21,14 @@ interface Report {
 
 interface ReportCardProps {
   report: Report;
-  onVote: (voteType: 'up' | 'down') => void;
+  onVote: (reportId: string, voteType: 'up' | 'down') => void;
   isAuthenticated: boolean;
 }
 
 const ReportCard = ({ report, onVote, isAuthenticated }: ReportCardProps) => {
+  const [isVoting, setIsVoting] = useState(false);
+  const { toast } = useToast();
+  
   const isLikelyFalse = report.votes.down > report.votes.up;
   const totalVotes = report.votes.up + report.votes.down;
 
@@ -39,6 +45,34 @@ const ReportCard = ({ report, onVote, isAuthenticated }: ReportCardProps) => {
       "Other": "bg-indigo-100 text-indigo-800 border-indigo-200"
     };
     return colors[category] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const handleVote = async (voteType: 'up' | 'down') => {
+    if (!isAuthenticated) {
+      onVote(report.id, voteType); // This will trigger the auth modal
+      return;
+    }
+    
+    if (isVoting) return;
+    
+    try {
+      setIsVoting(true);
+      await voteOnReport(report.id, voteType);
+      onVote(report.id, voteType);
+      
+      toast({
+        title: `Vote ${voteType === 'up' ? 'confirmed' : 'disputed'}`,
+        description: `Your ${voteType === 'up' ? 'confirmation' : 'dispute'} has been recorded.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error submitting vote",
+        description: error.message || "An error occurred while voting.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVoting(false);
+    }
   };
 
   return (
@@ -90,8 +124,8 @@ const ReportCard = ({ report, onVote, isAuthenticated }: ReportCardProps) => {
             <Button
               variant={report.userVote === 'up' ? "default" : "outline"}
               size="sm"
-              onClick={() => onVote('up')}
-              disabled={!isAuthenticated}
+              onClick={() => handleVote('up')}
+              disabled={!isAuthenticated || isVoting}
               className={`transition-all duration-300 ${
                 report.userVote === 'up' 
                   ? 'bg-green-600 hover:bg-green-700 text-white' 
@@ -105,8 +139,8 @@ const ReportCard = ({ report, onVote, isAuthenticated }: ReportCardProps) => {
             <Button
               variant={report.userVote === 'down' ? "destructive" : "outline"}
               size="sm"
-              onClick={() => onVote('down')}
-              disabled={!isAuthenticated}
+              onClick={() => handleVote('down')}
+              disabled={!isAuthenticated || isVoting}
               className={`transition-all duration-300 ${
                 report.userVote === 'down' 
                   ? 'bg-red-600 hover:bg-red-700' 

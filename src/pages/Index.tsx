@@ -1,8 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import AuthModal from "@/components/auth/AuthModal";
 import Navigation from "@/components/layout/Navigation";
 import ReportForm from "@/components/reports/ReportForm";
@@ -10,73 +9,67 @@ import ReportCard from "@/components/reports/ReportCard";
 import CategoryFilter from "@/components/filters/CategoryFilter";
 import { Plus, MapPin, Users, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { getReports, voteOnReport } from "@/services/reportService";
+import { Report } from "@/types/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Index = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  // Mock data for demonstration
-  const mockReports = [
-    {
-      id: 1,
-      title: "Pothole on Main Street",
-      description: "Large pothole causing traffic issues near the intersection of Main and Oak Street. Multiple cars have been damaged.",
-      category: "Road Damage",
-      location: "Main Street & Oak Street",
-      votes: { up: 15, down: 2 },
-      imageUrl: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800&h=600&fit=crop",
-      createdAt: "2 hours ago",
-      userVote: null
-    },
-    {
-      id: 2,
-      title: "Broken Street Light",
-      description: "Street light has been out for over a week, creating safety concerns for pedestrians.",
-      category: "Street Light Issue",
-      location: "Pine Avenue near Park",
-      votes: { up: 8, down: 1 },
-      imageUrl: "https://images.unsplash.com/photo-1500673922987-e212871fec22?w=800&h=600&fit=crop",
-      createdAt: "1 day ago",
-      userVote: null
-    },
-    {
-      id: 3,
-      title: "Fallen Tree Blocking Path",
-      description: "Tree fell during last storm and is blocking the walking path in Central Park.",
-      category: "Fallen Tree",
-      location: "Central Park Walking Trail",
-      votes: { up: 23, down: 0 },
-      imageUrl: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&h=600&fit=crop",
-      createdAt: "3 days ago",
-      userVote: "up"
+  const { data: reports = [], isLoading, error } = useQuery({
+    queryKey: ['reports', selectedCategory],
+    queryFn: () => getReports(selectedCategory),
+  });
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error loading reports",
+        description: "Failed to load the latest reports. Please try again later.",
+        variant: "destructive",
+      });
     }
-  ];
+  }, [error, toast]);
 
-  const handleVote = (reportId: number, voteType: 'up' | 'down') => {
-    if (!isAuthenticated) {
+  const handleVote = async (reportId: string, voteType: 'up' | 'down') => {
+    if (!user) {
       setShowAuthModal(true);
       return;
     }
     
-    toast({
-      title: "Vote recorded",
-      description: `Your ${voteType === 'up' ? 'confirmation' : 'dispute'} has been recorded.`,
-    });
+    try {
+      await voteOnReport(reportId, voteType);
+      // Refetch reports to get updated vote counts
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      
+      toast({
+        title: "Vote recorded",
+        description: `Your ${voteType === 'up' ? 'confirmation' : 'dispute'} has been recorded.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error recording vote",
+        description: error.message || "An error occurred while recording your vote.",
+        variant: "destructive",
+      });
+    }
   };
-
-  const filteredReports = selectedCategory 
-    ? mockReports.filter(report => report.category === selectedCategory)
-    : mockReports;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <Navigation 
-        isAuthenticated={isAuthenticated}
+        isAuthenticated={!!user}
         onAuthClick={() => setShowAuthModal(true)}
-        onLogout={() => setIsAuthenticated(false)}
+        onLogout={async () => {
+          const { signOut } = await import('@/services/authService');
+          await signOut();
+        }}
       />
 
       {/* Hero Section */}
@@ -93,7 +86,7 @@ const Index = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
             <Button 
               size="lg" 
-              onClick={() => isAuthenticated ? setShowReportForm(true) : setShowAuthModal(true)}
+              onClick={() => user ? setShowReportForm(true) : setShowAuthModal(true)}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               <Plus className="mr-2 h-5 w-5" />
@@ -103,6 +96,10 @@ const Index = () => {
               variant="outline" 
               size="lg"
               className="border-2 border-blue-200 hover:border-blue-300 px-8 py-3 rounded-full transition-all duration-300 hover:bg-blue-50"
+              onClick={() => window.scrollTo({ 
+                top: document.getElementById('reports-section')?.offsetTop - 100, 
+                behavior: 'smooth' 
+              })}
             >
               <MapPin className="mr-2 h-5 w-5" />
               View Reports
@@ -120,7 +117,7 @@ const Index = () => {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-4">
                   <MapPin className="h-6 w-6 text-blue-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">247</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{reports.length}</h3>
                 <p className="text-gray-600">Issues Reported</p>
               </CardContent>
             </Card>
@@ -130,8 +127,10 @@ const Index = () => {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
                   <CheckCircle className="h-6 w-6 text-green-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">189</h3>
-                <p className="text-gray-600">Issues Resolved</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {reports.filter(report => report.votes.up > report.votes.down).length}
+                </h3>
+                <p className="text-gray-600">Confirmed Reports</p>
               </CardContent>
             </Card>
             
@@ -140,7 +139,7 @@ const Index = () => {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-4">
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">1,234</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{user ? "1" : "0"}</h3>
                 <p className="text-gray-600">Active Citizens</p>
               </CardContent>
             </Card>
@@ -149,7 +148,7 @@ const Index = () => {
       </section>
 
       {/* Reports Section */}
-      <section className="py-12 px-4">
+      <section id="reports-section" className="py-12 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
@@ -162,21 +161,39 @@ const Index = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReports.map((report, index) => (
-              <div 
-                key={report.id}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 150}ms` }}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : reports.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {reports.map((report, index) => (
+                <div 
+                  key={report.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 150}ms` }}
+                >
+                  <ReportCard 
+                    report={report}
+                    onVote={handleVote}
+                    isAuthenticated={!!user}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-12 bg-white/50 rounded-lg backdrop-blur-sm border border-white/20 shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No reports yet</h3>
+              <p className="text-gray-600 mb-6">Be the first to report an issue in your community!</p>
+              <Button
+                onClick={() => user ? setShowReportForm(true) : setShowAuthModal(true)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
               >
-                <ReportCard 
-                  report={report}
-                  onVote={(voteType) => handleVote(report.id, voteType)}
-                  isAuthenticated={isAuthenticated}
-                />
-              </div>
-            ))}
-          </div>
+                <Plus className="mr-2 h-4 w-4" />
+                Create First Report
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -185,7 +202,6 @@ const Index = () => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSuccess={() => {
-          setIsAuthenticated(true);
           setShowAuthModal(false);
           toast({
             title: "Welcome!",
@@ -199,6 +215,7 @@ const Index = () => {
         onClose={() => setShowReportForm(false)}
         onSuccess={() => {
           setShowReportForm(false);
+          queryClient.invalidateQueries({ queryKey: ['reports'] });
           toast({
             title: "Report submitted!",
             description: "Thank you for helping improve our community.",
