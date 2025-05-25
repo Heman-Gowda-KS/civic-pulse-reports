@@ -251,7 +251,8 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
 
 export const getComments = async (reportId: string) => {
   try {
-    const { data, error } = await supabase
+    // Use type assertion to work around missing comments table in types
+    const { data, error } = await (supabase as any)
       .from('comments')
       .select(`
         id,
@@ -265,7 +266,7 @@ export const getComments = async (reportId: string) => {
     
     if (error) throw error;
     
-    return (data || []).map(comment => ({
+    return (data || []).map((comment: any) => ({
       id: comment.id,
       reportId: reportId,
       userId: comment.user_id,
@@ -295,7 +296,8 @@ export const createComment = async (reportId: string, content: string) => {
       throw new Error('User not authenticated');
     }
     
-    const { data, error } = await supabase
+    // Use type assertion to work around missing comments table in types
+    const { data, error } = await (supabase as any)
       .from('comments')
       .insert({
         report_id: reportId,
