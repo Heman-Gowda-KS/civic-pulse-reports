@@ -147,6 +147,8 @@ export const createReport = async (reportData: {
 
 export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') => {
   try {
+    console.log('Starting vote operation:', { reportId, voteType });
+    
     // Get current user ID
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id;
@@ -154,6 +156,8 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
     if (!userId) {
       throw new Error('User not authenticated');
     }
+    
+    console.log('User authenticated:', userId);
     
     // Check if user has already voted on this report
     const { data: existingVote, error: checkError } = await supabase
@@ -163,29 +167,43 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
       .eq('report_id', reportId)
       .maybeSingle();
     
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error('Error checking existing vote:', checkError);
+      throw checkError;
+    }
+    
+    console.log('Existing vote:', existingVote);
     
     if (existingVote) {
       // User already voted - handle based on whether it's the same vote or not
       if (existingVote.vote_type === voteType) {
         // Remove vote if it's the same type (toggle off)
+        console.log('Removing existing vote');
         const { error: deleteError } = await supabase
           .from('votes')
           .delete()
           .eq('id', existingVote.id);
           
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error('Error deleting vote:', deleteError);
+          throw deleteError;
+        }
       } else {
         // Update vote if it's a different type
+        console.log('Updating existing vote');
         const { error: updateError } = await supabase
           .from('votes')
           .update({ vote_type: voteType })
           .eq('id', existingVote.id);
           
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating vote:', updateError);
+          throw updateError;
+        }
       }
     } else {
       // Create new vote
+      console.log('Creating new vote');
       const { error: insertError } = await supabase
         .from('votes')
         .insert([
@@ -196,10 +214,14 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
           }
         ]);
         
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error inserting vote:', insertError);
+        throw insertError;
+      }
     }
     
     // Get updated vote counts
+    console.log('Fetching updated vote counts');
     const { data: votesData } = await supabase.rpc('get_report_votes', {
       report_id: reportId
     });
@@ -215,12 +237,79 @@ export const voteOnReport = async (reportId: string, voteType: 'up' | 'down') =>
       p_user_id: userId 
     });
     
+    console.log('Vote operation completed:', { votes, userVote: userVoteData });
+    
     return {
       votes: votes,
       userVote: userVoteData as 'up' | 'down' | null
     };
   } catch (error) {
     console.error('Error voting on report:', error);
+    throw error;
+  }
+};
+
+export const getComments = async (reportId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        id,
+        content,
+        created_at,
+        user_id,
+        profiles(username)
+      `)
+      .eq('report_id', reportId)
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
+    
+    return (data || []).map(comment => ({
+      id: comment.id,
+      reportId: reportId,
+      userId: comment.user_id,
+      content: comment.content,
+      createdAt: new Date(comment.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      username: comment.profiles?.username || 'Anonymous'
+    }));
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    throw error;
+  }
+};
+
+export const createComment = async (reportId: string, content: string) => {
+  try {
+    // Get current user ID
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({
+        report_id: reportId,
+        user_id: userId,
+        content: content
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    console.error('Error creating comment:', error);
     throw error;
   }
 };

@@ -67,15 +67,14 @@ const Index = () => {
     }
     
     try {
-      await voteOnReport(reportId, voteType);
-      // Refetch reports to get updated vote counts
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      console.log('Index: Handling vote for report', reportId, 'with type', voteType);
       
-      toast({
-        title: "Vote recorded",
-        description: `Your ${voteType === 'up' ? 'confirmation' : 'dispute'} has been recorded.`,
-      });
+      // The voting is already handled in ReportCard, we just need to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
+      
+      console.log('Index: Vote completed, data refreshed');
     } catch (error: any) {
+      console.error('Index: Vote error', error);
       toast({
         title: "Error recording vote",
         description: error.message || "An error occurred while recording your vote.",

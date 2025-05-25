@@ -6,6 +6,15 @@ export type Profile = Database['public']['Tables']['profiles']['Row'];
 // Define the report category type from the database enum
 export type ReportCategory = Database['public']['Enums']['report_category'];
 
+export type Comment = {
+  id: string;
+  reportId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  username?: string;
+};
+
 export type Report = {
   id: string;
   title: string;
@@ -16,4 +25,5 @@ export type Report = {
   imageUrl?: string;
   createdAt: string;
   userVote?: 'up' | 'down' | null;
+  comments?: Comment[];
 };
